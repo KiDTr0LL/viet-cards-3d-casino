@@ -1,11 +1,11 @@
-import { registerRootComponent } from 'expo';
-import { ExpoRoot } from 'expo-router';
+import { AppRegistry } from 'react-native';
+import { name as appName } from './app.json';
+import App from './App';
 
-// Must be exported as 'App'
-export function App() {
-  const ctx = require.context('.', true, /\.(tsx?)$/);
-  return <ExpoRoot context={ctx} />;
+AppRegistry.registerComponent(appName, () => App);
+
+// Register Unity bridge handler
+if (global.WebSocket) {
+  // Initialize Unity bridge
+  console.log('Unity bridge initialized');
 }
-
-// Register the app
-registerRootComponent(App);
