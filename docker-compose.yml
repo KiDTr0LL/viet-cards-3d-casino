@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: viet-cards-db
+    environment:
+      POSTGRES_USER: vietcards
+      POSTGRES_PASSWORD: vietcards_dev
+      POSTGRES_DB: viet_cards
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis for session caching (optional, can add later)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: viet-cards-redis
+  #   ports:
+  #     - "6379:6379"
+
+volumes:
+  postgres_data:

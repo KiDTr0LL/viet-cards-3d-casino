@@ -11,16 +11,9 @@ export interface CurrencyUpdate {
 }
 
 export interface CurrencyService {
-  // Update gold balance
   updateGold(userId: string, delta: number, type: TransactionType, metadata?: any): Promise<number>;
-
-  // Update diamond balance
   updateDiamonds(userId: string, delta: number, type: TransactionType, metadata?: any): Promise<number>;
-
-  // Daily gold refresh (if balance is low)
   dailyRefresh(userId: string): Promise<{ gold: number; refreshed: boolean }>;
-
-  // Get current balance
   getBalance(userId: string): Promise<{ gold: number; diamonds: number }>;
 }
 
@@ -31,7 +24,7 @@ export class CurrencyServiceImpl implements CurrencyService {
 
     const newBalance = user.gold + delta;
 
-    const [transaction] = await prisma.$transaction([
+    await prisma.$transaction([
       prisma.transaction.create({
         data: {
           userId,
@@ -57,21 +50,22 @@ export class CurrencyServiceImpl implements CurrencyService {
 
     const newBalance = user.diamonds + delta;
 
-    await prisma.transaction.create({
-      data: {
-        userId,
-        type,
-        currencyType: CurrencyType.DIAMOND,
-        amount: delta,
-        balanceAfter: newBalance,
-        metadata,
-      },
-    });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { diamonds: newBalance },
-    });
+    await prisma.$transaction([
+      prisma.transaction.create({
+        data: {
+          userId,
+          type,
+          currencyType: CurrencyType.DIAMOND,
+          amount: delta,
+          balanceAfter: newBalance,
+          metadata,
+        },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { diamonds: newBalance },
+      }),
+    ]);
 
     return newBalance;
   }
@@ -80,7 +74,6 @@ export class CurrencyServiceImpl implements CurrencyService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error('User not found');
 
-    // Refresh only if balance is below threshold
     const REFRESH_THRESHOLD = 500;
     const REFRESH_AMOUNT = 1000;
 

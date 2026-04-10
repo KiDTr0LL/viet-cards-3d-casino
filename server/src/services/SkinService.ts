@@ -8,20 +8,11 @@ export interface SkinPurchase {
 }
 
 export interface SkinService {
-  // Get all available skins
   getAllSkins(): Promise<any[]>;
-
-  // Get user's owned skins
   getUserSkins(userId: string): Promise<any[]>;
-
-  // Purchase a skin
   purchaseSkin(purchase: SkinPurchase): Promise<{ success: boolean; transaction: any }>;
-
-  // Equip a skin
   equipCardSkin(userId: string, skinId: string): Promise<void>;
   equipTableSkin(userId: string, skinId: string): Promise<void>;
-
-  // Get user's equipped skins
   getEquippedSkins(userId: string): Promise<{ cardSkin?: string; tableSkin?: string }>;
 }
 
@@ -49,7 +40,7 @@ export class SkinServiceImpl implements SkinService {
 
     // Check if user has enough diamonds
     if (user.diamonds < skin.price) {
-      throw new Error('Insufficient diamonds');
+      return { success: false, transaction: { error: 'Insufficient diamonds' } };
     }
 
     // Check if already owned
@@ -58,7 +49,7 @@ export class SkinServiceImpl implements SkinService {
     });
 
     if (existing) {
-      throw new Error('Skin already owned');
+      return { success: false, transaction: { error: 'Skin already owned' } };
     }
 
     // Deduct diamonds and add skin
@@ -86,7 +77,6 @@ export class SkinServiceImpl implements SkinService {
   }
 
   async equipCardSkin(userId: string, skinId: string) {
-    // Verify ownership
     const owned = await prisma.userSkin.findUnique({
       where: { userId_skinId: { userId, skinId } },
     });

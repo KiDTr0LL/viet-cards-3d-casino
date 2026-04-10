@@ -1,5 +1,4 @@
 // Viet Cards 3D Casino - Database Schema
-// Extends existing schema with skin/currency system
 
 generator client {
   provider = "prisma-client-js"
@@ -10,40 +9,43 @@ datasource db {
   url      env("DATABASE_URL")
 }
 
-// ===== EXISTING MODELS (Keep from GitLab) =====
-// User model - extend with skin preferences
+// ===== USER MODEL =====
+
 model User {
-  id               String    @id @default(uuid())
-  firebaseUid      String    @unique
-  displayName      String
-  avatarUrl        String?
-  email            String?
+  id                   String    @id @default(uuid())
+  firebaseUid          String?   @unique // Null for dev/guest users
+  devSessionId         String?   @unique // For local dev login
+  displayName          String
+  avatarUrl            String?
+  email                String?
+  isGuest              Boolean   @default(false)
 
   // Currency balances
-  gold             Int       @default(1000)
-  diamonds         Int       @default(0)
+  gold                 Int       @default(1000)
+  diamonds             Int       @default(0)
 
   // Equipped skins
-  equippedCardSkinId String?
-  equippedTableSkinId String?
+  equippedCardSkinId   String?
+  equippedTableSkinId  String?
 
   // Stats
-  totalGames       Int       @default(0)
-  totalWins        Int       @default(0)
-  leagueTier       String    @default("BRONZE")
+  totalGames           Int       @default(0)
+  totalWins            Int       @default(0)
+  leagueTier           String    @default("BRONZE")
 
   // Relations
-  ownedSkins       UserSkin[]
-  transactions     Transaction[]
-  matches          Match[]
+  ownedSkins           UserSkin[]
+  transactions         Transaction[]
+  matches              Match[]
 
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([firebaseUid])
+  @@index([devSessionId])
 }
 
-// ===== NEW MODELS FOR SKIN SYSTEM =====
+// ===== SKIN SYSTEM =====
 
 enum SkinType {
   CARD
@@ -107,6 +109,7 @@ enum TransactionType {
   PURCHASE
   REFRESH
   GIFT
+  BONUS
   RAKE
 }
 
@@ -117,6 +120,7 @@ model Transaction {
   currencyType CurrencyType
   amount       Int            // Positive for gains, negative for losses
   balanceAfter Int            // Running balance after transaction
+  description  String?
   metadata     Json?          // Additional info (gameId, skinId, etc.)
 
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -195,22 +199,20 @@ model MatchResult {
   @@index([matchId])
 }
 
-// ===== ACTIVE GAME ROOMS (Colyseus state mirrored) =====
-
 model GameSession {
-  id        String   @id @default(uuid())
-  roomId    String   @unique
-  gameType  GameType
-  hostId    String
-  status    String   // 'WAITING', 'PLAYING', 'FINISHED'
-  maxPlayers Int     @default(4)
-  betAmount Int
+  id         String   @id @default(uuid())
+  roomId     String   @unique
+  gameType   GameType
+  hostId     String
+  status     String   // 'WAITING', 'PLAYING', 'FINISHED'
+  maxPlayers Int      @default(4)
+  betAmount  Int
 
-  players   String   // JSON array of player IDs
-  metadata  Json?    // Additional room settings
+  players    String   // JSON array of player IDs
+  metadata   Json?    // Additional room settings
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([roomId])
   @@index([hostId])
