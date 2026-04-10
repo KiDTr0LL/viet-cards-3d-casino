@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useGame } from '../contexts/GameContext';
 import CurrencyDisplay from '../components/CurrencyDisplay';
 
 const THEME = {
@@ -15,6 +16,7 @@ const THEME = {
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { state } = useGame();
 
   const games = [
     {
