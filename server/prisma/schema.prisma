@@ -1,0 +1,217 @@
+// Viet Cards 3D Casino - Database Schema
+// Extends existing schema with skin/currency system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      env("DATABASE_URL")
+}
+
+// ===== EXISTING MODELS (Keep from GitLab) =====
+// User model - extend with skin preferences
+model User {
+  id               String    @id @default(uuid())
+  firebaseUid      String    @unique
+  displayName      String
+  avatarUrl        String?
+  email            String?
+
+  // Currency balances
+  gold             Int       @default(1000)
+  diamonds         Int       @default(0)
+
+  // Equipped skins
+  equippedCardSkinId String?
+  equippedTableSkinId String?
+
+  // Stats
+  totalGames       Int       @default(0)
+  totalWins        Int       @default(0)
+  leagueTier       String    @default("BRONZE")
+
+  // Relations
+  ownedSkins       UserSkin[]
+  transactions     Transaction[]
+  matches          Match[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([firebaseUid])
+}
+
+// ===== NEW MODELS FOR SKIN SYSTEM =====
+
+enum SkinType {
+  CARD
+  TABLE
+  AVATAR_FRAME
+  EFFECT
+}
+
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model Skin {
+  id          String    @id @default(uuid())
+  name        String
+  type        SkinType
+  rarity      Rarity    @default(COMMON)
+  price       Int       // Price in diamonds
+  imageUrl    String
+  category    String    // Grouping (e.g., "Vietnamese Silk", "Premium Gold")
+  description String?
+  isActive    Boolean   @default(true)
+
+  userSkins   UserSkin[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type])
+  @@index([category])
+}
+
+model UserSkin {
+  id        String   @id @default(uuid())
+  userId    String
+  skinId    String
+  equipped  Boolean  @default(false)
+  purchased DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skin      Skin     @relation(fields: [skinId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skinId])
+  @@index([userId])
+  @@index([skinId])
+}
+
+// ===== TRANSACTION SYSTEM =====
+
+enum CurrencyType {
+  GOLD
+  DIAMOND
+}
+
+enum TransactionType {
+  WIN
+  LOSS
+  PURCHASE
+  REFRESH
+  GIFT
+  RAKE
+}
+
+model Transaction {
+  id           String         @id @default(uuid())
+  userId       String
+  type         TransactionType
+  currencyType CurrencyType
+  amount       Int            // Positive for gains, negative for losses
+  balanceAfter Int            // Running balance after transaction
+  metadata     Json?          // Additional info (gameId, skinId, etc.)
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime       @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+// ===== GAME SESSIONS =====
+
+enum GameType {
+  TIENLEN
+  MAUBINH
+}
+
+enum MatchStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Match {
+  id          String      @id @default(uuid())
+  gameType    GameType
+  status      MatchStatus @default(PENDING)
+  betAmount   Int
+  rakePercent Int         @default(5) // 5% house rake
+
+  players     MatchPlayer[]
+  results     MatchResult[]
+
+  hostId      String
+  roomId      String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([hostId])
+  @@index([roomId])
+  @@index([status])
+}
+
+model MatchPlayer {
+  id        String  @id @default(uuid())
+  matchId   String
+  playerId  String
+  position  Int     // Seat position
+  isBot     Boolean @default(false)
+
+  match     Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player    User    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+  @@index([playerId])
+}
+
+model MatchResult {
+  id        String   @id @default(uuid())
+  matchId   String
+  playerId  String
+  placement Int      // 1st, 2nd, 3rd, 4th
+  goldDelta Int      // Change in gold
+  rankDelta Int      // Change in ELO/rank points
+
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player    User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+}
+
+// ===== ACTIVE GAME ROOMS (Colyseus state mirrored) =====
+
+model GameSession {
+  id        String   @id @default(uuid())
+  roomId    String   @unique
+  gameType  GameType
+  hostId    String
+  status    String   // 'WAITING', 'PLAYING', 'FINISHED'
+  maxPlayers Int     @default(4)
+  betAmount Int
+
+  players   String   // JSON array of player IDs
+  metadata  Json?    // Additional room settings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId])
+  @@index([hostId])
+}
