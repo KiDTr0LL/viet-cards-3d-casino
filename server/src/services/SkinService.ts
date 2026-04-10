@@ -1,4 +1,8 @@
 import { PrismaClient, CurrencyType, TransactionType } from '@prisma/client';
+import { skinRepository } from '../repositories/SkinRepository';
+import { userSkinRepository } from '../repositories/UserSkinRepository';
+import { userRepository } from '../repositories/UserRepository';
+import { currencyRepository } from '../repositories/CurrencyRepository';
 
 const prisma = new PrismaClient();
 
@@ -18,24 +22,18 @@ export interface SkinService {
 
 export class SkinServiceImpl implements SkinService {
   async getAllSkins() {
-    return prisma.skin.findMany({
-      where: { isActive: true },
-      orderBy: { category: 'asc' },
-    });
+    return skinRepository.findAll();
   }
 
   async getUserSkins(userId: string) {
-    return prisma.userSkin.findMany({
-      where: { userId },
-      include: { skin: true },
-    });
+    return userSkinRepository.findByUserId(userId);
   }
 
   async purchaseSkin({ userId, skinId }: SkinPurchase) {
-    const skin = await prisma.skin.findUnique({ where: { id: skinId } });
+    const skin = await skinRepository.findById(skinId);
     if (!skin) throw new Error('Skin not found');
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await userRepository.findById(userId);
     if (!user) throw new Error('User not found');
 
     // Check if user has enough diamonds
@@ -44,20 +42,22 @@ export class SkinServiceImpl implements SkinService {
     }
 
     // Check if already owned
-    const existing = await prisma.userSkin.findUnique({
-      where: { userId_skinId: { userId, skinId } },
-    });
+    const existing = await userSkinRepository.findByUserIdAndSkinId(userId, skinId);
 
     if (existing) {
       return { success: false, transaction: 'Skin already owned' };
     }
 
-    // Deduct diamonds and add skin
-    const [purchase, transaction] = await prisma.$transaction([
-      prisma.userSkin.create({
+    // Use Prisma transaction for atomic operations
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user skin ownership
+      const purchase = await tx.userSkin.create({
         data: { userId, skinId },
-      }),
-      prisma.transaction.create({
+        include: { skin: true },
+      });
+
+      // Create transaction record
+      const transaction = await tx.transaction.create({
         data: {
           userId,
           type: TransactionType.PURCHASE,
@@ -66,54 +66,42 @@ export class SkinServiceImpl implements SkinService {
           balanceAfter: user.diamonds - skin.price,
           metadata: { skinId, skinName: skin.name },
         },
-      }),
-      prisma.user.update({
+      });
+
+      // Deduct diamonds
+      await tx.user.update({
         where: { id: userId },
         data: { diamonds: { decrement: skin.price } },
-      }),
-    ]);
+      });
 
-    return { success: true, transaction };
+      return { purchase, transaction };
+    });
+
+    return { success: true, transaction: result.transaction };
   }
 
   async equipCardSkin(userId: string, skinId: string) {
-    const owned = await prisma.userSkin.findUnique({
-      where: { userId_skinId: { userId, skinId } },
-    });
+    const owned = await userSkinRepository.findByUserIdAndSkinId(userId, skinId);
 
     if (!owned) {
       throw new Error('Skin not owned');
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { equippedCardSkinId: skinId },
-    });
+    await userRepository.update(userId, { equippedCardSkinId: skinId });
   }
 
   async equipTableSkin(userId: string, skinId: string) {
-    const owned = await prisma.userSkin.findUnique({
-      where: { userId_skinId: { userId, skinId } },
-    });
+    const owned = await userSkinRepository.findByUserIdAndSkinId(userId, skinId);
 
     if (!owned) {
       throw new Error('Skin not owned');
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { equippedTableSkinId: skinId },
-    });
+    await userRepository.update(userId, { equippedTableSkinId: skinId });
   }
 
   async getEquippedSkins(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        equippedCardSkinId: true,
-        equippedTableSkinId: true,
-      },
-    });
+    const user = await userRepository.findById(userId);
 
     return {
       cardSkin: user?.equippedCardSkinId || undefined,
