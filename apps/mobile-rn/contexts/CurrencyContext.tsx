@@ -1,56 +1,41 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-
-interface CurrencyState {
-  gold: number;
-  diamonds: number;
-  pendingGold: number;  // For animation buffering
-  pendingDiamonds: number;
-}
+import { getUserProfile } from '../services/api';
 
 interface CurrencyContextType {
-  currency: CurrencyState;
-  updateGold: (delta: number, animated?: boolean) => void;
-  updateDiamonds: (delta: number, animated?: boolean) => void;
-  animateToValue: (targetGold: number, targetDiamonds: number) => void;
+  gold: number;
+  diamonds: number;
+  updateBalance: () => Promise<void>;
   formatGold: (amount: number) => string;
   formatDiamonds: (amount: number) => string;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
-export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const { profile } = useAuth();
-  const [currency, setCurrency] = useState<CurrencyState>({
-    gold: profile?.currencyBalance || 1000,
-    diamonds: profile?.diamondBalance || 0,
-    pendingGold: 0,
-    pendingDiamonds: 0,
-  });
+export function CurrencyProvider({ children }: { children: ReactNode }) {
+  const { sessionId, user, setUser } = useAuth();
+  const [gold, setGold] = useState(user?.gold || 0);
+  const [diamonds, setDiamonds] = useState(user?.diamonds || 0);
 
-  const updateGold = useCallback((delta: number, animated: boolean = true) => {
-    setCurrency(prev => ({
-      ...prev,
-      gold: prev.gold + delta,
-      ...(animated ? { pendingGold: delta } : {}),
-    }));
-  }, []);
+  // Update balance when user changes
+  useEffect(() => {
+    if (user) {
+      setGold(user.gold);
+      setDiamonds(user.diamonds);
+    }
+  }, [user]);
 
-  const updateDiamonds = useCallback((delta: number, animated: boolean = true) => {
-    setCurrency(prev => ({
-      ...prev,
-      diamonds: prev.diamonds + delta,
-      ...(animated ? { pendingDiamonds: delta } : {}),
-    }));
-  }, []);
-
-  const animateToValue = useCallback((targetGold: number, targetDiamonds: number) => {
-    setCurrency(prev => ({
-      ...prev,
-      gold: targetGold,
-      diamonds: targetDiamonds,
-    }));
-  }, []);
+  const updateBalance = async () => {
+    if (!sessionId) return;
+    try {
+      const profile = await getUserProfile(sessionId);
+      setUser(profile);
+      setGold(profile.gold);
+      setDiamonds(profile.diamonds);
+    } catch (error) {
+      console.error('Failed to update balance:', error);
+    }
+  };
 
   const formatGold = (amount: number): string => {
     if (amount >= 1000000) {
@@ -69,10 +54,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   return (
     <CurrencyContext.Provider
       value={{
-        currency,
-        updateGold,
-        updateDiamonds,
-        animateToValue,
+        gold,
+        diamonds,
+        updateBalance,
         formatGold,
         formatDiamonds,
       }}

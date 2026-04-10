@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useCurrency } from '../contexts/CurrencyContext';
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -10,186 +9,106 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface CurrencyDisplayProps {
+  gold: number;
+  diamonds: number;
   size?: 'small' | 'medium' | 'large';
-  showLabel?: boolean;
-  avatarUrl?: string;
-  displayName?: string;
 }
 
-export function CurrencyDisplay({
-  size = 'medium',
-  showLabel = false,
-  avatarUrl,
-  displayName,
-}: CurrencyDisplayProps) {
-  const { currency, formatGold, formatDiamonds } = useCurrency();
-  const [displayGold, setDisplayGold] = useState(currency.gold);
-  const [displayDiamonds, setDisplayDiamonds] = useState(currency.diamonds);
+export function CurrencyDisplay({ gold, diamonds, size = 'medium' }: CurrencyDisplayProps) {
+  const [displayGold, setDisplayGold] = useState(gold);
+  const [displayDiamonds, setDisplayDiamonds] = useState(diamonds);
 
-  // Animation for counting effect
+  // Animate gold when it changes
   useEffect(() => {
-    if (currency.pendingGold !== 0) {
-      // Animate gold counter
-      const target = currency.gold;
-      const start = displayGold;
+    if (gold !== displayGold) {
       const duration = 500;
       const steps = 20;
-      const stepSize = (target - start) / steps;
+      const stepSize = Math.round((gold - displayGold) / steps);
 
       let currentStep = 0;
       const interval = setInterval(() => {
         currentStep++;
         if (currentStep >= steps) {
-          setDisplayGold(target);
+          setDisplayGold(gold);
           clearInterval(interval);
         } else {
-          setDisplayGold(Math.round(start + stepSize * currentStep));
+          setDisplayGold(displayGold + stepSize);
         }
       }, duration / steps);
 
       return () => clearInterval(interval);
     }
-  }, [currency.pendingGold]);
+  }, [gold]);
 
+  // Animate diamonds when it changes
   useEffect(() => {
-    if (currency.pendingDiamonds !== 0) {
-      const target = currency.diamonds;
-      setDisplayDiamonds(target);
+    if (diamonds !== displayDiamonds) {
+      setDisplayDiamonds(diamonds);
     }
-  }, [currency.pendingDiamonds]);
+  }, [diamonds]);
+
+  const formatAmount = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `${(amount / 1000000).toFixed(1)}M`;
+    }
+    if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(1)}K`;
+    }
+    return amount.toLocaleString();
+  };
 
   const sizes = {
-    small: {
-      container: styles.smallContainer,
-      goldText: { fontSize: 12 },
-      diamondText: { fontSize: 12 },
-      label: { fontSize: 10 },
-    },
-    medium: {
-      container: styles.mediumContainer,
-      goldText: { fontSize: 14 },
-      diamondText: { fontSize: 14 },
-      label: { fontSize: 11 },
-    },
-    large: {
-      container: styles.largeContainer,
-      goldText: { fontSize: 18 },
-      diamondText: { fontSize: 18 },
-      label: { fontSize: 14 },
-    },
+    small: { container: 24, icon: 12, text: 12 },
+    medium: { container: 32, icon: 16, text: 14 },
+    large: { container: 40, icon: 20, text: 16 },
   };
 
   const currentSize = sizes[size];
 
   return (
-    <Animated.View style={[styles.container, { flexDirection: 'row', alignItems: 'center' }]} entering={FadeIn}>
-      {displayName && (
-        <Text style={[styles.displayName, currentSize.label]}>{displayName}</Text>
-      )}
-
-      <View style={[styles.currencyContainer, currentSize.container]}>
-        {/* Gold Display */}
-        <View style={styles.currencyItem}>
-          <Text style={styles.goldIcon}>🪙</Text>
-          <Text style={[styles.currencyText, currentSize.goldText, styles.goldText]}>
-            {formatGold(displayGold)}
-          </Text>
-        </View>
-
-        {/* Divider */}
-        <View style={styles.divider} />
-
-        {/* Diamond Display */}
-        <View style={styles.currencyItem}>
-          <Text style={styles.diamondIcon}>💎</Text>
-          <Text style={[styles.currencyText, currentSize.diamondText, styles.diamondText]}>
-            {formatDiamonds(displayDiamonds)}
-          </Text>
-        </View>
+    <Animated.View style={[styles.container, { flexDirection: 'row' }]} entering={FadeIn}>
+      {/* Gold */}
+      <View style={[styles.currencyItem, { width: currentSize.container }]}>
+        <Text style={[styles.icon, { fontSize: currentSize.icon }]}>🪙</Text>
+        <Text style={[styles.text, { fontSize: currentSize.text, color: '#d4af37' }]}>
+          {formatAmount(displayGold)}
+        </Text>
       </View>
 
-      {showLabel && (
-        <View style={styles.addButton}>
-          <Text style={styles.addIcon}>+</Text>
-        </View>
-      )}
+      {/* Divider */}
+      <View style={styles.divider} />
+
+      {/* Diamonds */}
+      <View style={[styles.currencyItem, { width: currentSize.container }]}>
+        <Text style={[styles.icon, { fontSize: currentSize.icon }]}>💎</Text>
+        <Text style={[styles.text, { fontSize: currentSize.text, color: '#00a8e8' }]}>
+          {formatAmount(displayDiamonds)}
+        </Text>
+      </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  displayName: {
-    color: '#f5f5f0',
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  currencyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    justifyContent: 'center',
   },
   currencyItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  currencyText: {
+  icon: {
+    marginRight: 4,
+  },
+  text: {
     fontWeight: 'bold',
-    marginLeft: 2,
-  },
-  goldIcon: {
-    fontSize: 16,
-  },
-  goldText: {
-    color: '#d4af37',
-  },
-  diamondIcon: {
-    fontSize: 14,
-  },
-  diamondText: {
-    color: '#00a8e8',
   },
   divider: {
     width: 1,
-    height: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 6,
-  },
-  addButton: {
-    backgroundColor: 'rgba(212, 175, 55, 0.2)',
-    borderRadius: 8,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    borderWidth: 1,
-    borderColor: '#d4af37',
-  },
-  addIcon: {
-    color: '#d4af37',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  smallContainer: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  mediumContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  largeContainer: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    height: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 8,
   },
 });
 
