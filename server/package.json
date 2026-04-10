@@ -9,7 +9,8 @@
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
     "seed": "tsx prisma/seed.ts",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

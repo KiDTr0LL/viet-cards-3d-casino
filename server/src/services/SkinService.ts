@@ -40,7 +40,7 @@ export class SkinServiceImpl implements SkinService {
 
     // Check if user has enough diamonds
     if (user.diamonds < skin.price) {
-      return { success: false, transaction: { error: 'Insufficient diamonds' } };
+      return { success: false, transaction: 'Insufficient diamonds' };
     }
 
     // Check if already owned
@@ -49,7 +49,7 @@ export class SkinServiceImpl implements SkinService {
     });
 
     if (existing) {
-      return { success: false, transaction: { error: 'Skin already owned' } };
+      return { success: false, transaction: 'Skin already owned' };
     }
 
     // Deduct diamonds and add skin

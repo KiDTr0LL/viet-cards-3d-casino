@@ -5,15 +5,34 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@components/*": ["components/*"],
-      "@screens/*": ["app/*"],
-      "@services/*": ["services/*"],
-      "@contexts/*": ["contexts/*"],
-      "@hooks/*": ["hooks/*"],
-      "@types/*": ["types/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@components/*": [
+        "components/*"
+      ],
+      "@screens/*": [
+        "app/*"
+      ],
+      "@services/*": [
+        "services/*"
+      ],
+      "@contexts/*": [
+        "contexts/*"
+      ],
+      "@hooks/*": [
+        "hooks/*"
+      ],
+      "@types/*": [
+        "types/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

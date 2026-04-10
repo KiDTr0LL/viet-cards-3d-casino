@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
 
 export interface User {
   id: string;

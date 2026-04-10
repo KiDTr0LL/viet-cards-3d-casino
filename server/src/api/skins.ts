@@ -84,7 +84,7 @@ skinRouter.post('/purchase', async (req: Request, res: Response) => {
     const result = await skinService.purchaseSkin({ userId: user.id, skinId });
 
     if (!result.success) {
-      return res.status(400).json({ error: result.transaction });
+      return res.status(400).json(result.transaction);
     }
 
     res.json({ success: true, transaction: result.transaction });
